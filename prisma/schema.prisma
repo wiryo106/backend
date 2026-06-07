@@ -1,0 +1,85 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  TECHNICIAN
+  CUSTOMER
+}
+
+enum BookingStatus {
+  PENDING       // Menunggu Konfirmasi
+  ASSIGNED      // Teknisi Ditugaskan
+  IN_PROGRESS   // Proses Perbaikan
+  COMPLETED     // Selesai
+}
+
+model User {
+  id           Int          @id @default(autoincrement())
+  email        String       @unique
+  password     String
+  name         String
+  role         Role         @default(CUSTOMER)
+  phone        String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  bookings     Booking[]    @relation("CustomerBookings")
+  assignments  Assignment[] @relation("TechnicianAssignments")
+}
+
+model Service {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?   @db.Text
+  basePrice   Float
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  bookings    Booking[]
+}
+
+model Booking {
+  id            Int            @id @default(autoincrement())
+  customerId    Int
+  serviceId     Int
+  quantity      Int            @default(1)
+  bookingDate   DateTime       @db.Date
+  address       String         @db.Text
+  complaint     String         @db.Text
+  status        BookingStatus  @default(PENDING)
+  totalPrice    Float
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  customer      User           @relation("CustomerBookings", fields: [customerId], references: [id])
+  service       Service        @relation(fields: [serviceId], references: [id])
+  assignments   Assignment[]
+  documentation Documentation?
+}
+
+model Assignment {
+  id           Int      @id @default(autoincrement())
+  bookingId    Int
+  technicianId Int
+  assignedAt   DateTime @default(now())
+  
+  booking      Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  technician   User     @relation("TechnicianAssignments", fields: [technicianId], references: [id])
+
+  @@unique([bookingId, technicianId])
+}
+
+model Documentation {
+  id          Int      @id @default(autoincrement())
+  bookingId   Int      @unique
+  photoUrl    String
+  description String?  @db.Text
+  uploadedAt  DateTime @default(now())
+  
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
