@@ -29,5 +29,3 @@ DATABASE_URL="mysql://root@localhost:3306/uasproject"
 DAILY_BOOKING_LIMIT=10
 ```
 6. ketik `npm run dev` di terminal dan tunggu sampe ada tulisan server running
-
-> bingung? tanya AI mawon
