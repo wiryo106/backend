@@ -1,4 +1,4 @@
-# backend uas sopingi
+# backend uas
 
 > - dokumentasi API: [DOCS.md](DOCS.md)
 > - collection postman: https://cdn.krepowo.my.id/files/UAS%20Pak%20Sopingi.postman_collection.json
