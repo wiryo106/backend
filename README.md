@@ -18,11 +18,11 @@ database:
 cara setup backend:
 1. Clone repository
 2. Buka folder hasil clone di vscode
+4. buka xampp/laragon, nyalakan mysql dan buat database bernama "uasproject"
 3. buka terminal lalu ketik:
    - `npm install`
    - `npx prisma generate`
    - `npx prisma db push`
-4. buka xampp/laragon, nyalakan mysql dan buat database bernama "uasproject"
 5. buat file .env, lalu isi dengan:
 ```
 DATABASE_URL="mysql://root@localhost:3306/uasproject"
