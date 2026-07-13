@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import prisma from '../utils/prisma.js';
+import PDFDocument from 'pdfkit-table';
 
 export const getPendingBookings = async (req, res) => {
   try {
@@ -217,3 +218,96 @@ export const downloadReport = async (req, res) => {
     res.status(500).json({ error: 'Gagal mengunduh laporan' });
   }
 };
+
+export const downloadReportPdf = async (req, res) => {
+  try {
+    const { month, year } = req.query;
+
+    if (!month || !year) {
+      return res.status(400).json({ error: 'Parameter month dan year wajib diisi' });
+    }
+
+    const m = parseInt(month);
+    const y = parseInt(year);
+    const startDate = new Date(y, m - 1, 1);
+    const endDate = new Date(y, m, 1);
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        status: 'COMPLETED',
+        bookingDate: {
+          gte: startDate,
+          lt: endDate,
+        },
+      },
+      include: {
+        customer: { select: { name: true, phone: true } },
+        service: { select: { name: true } },
+        assignments: {
+          include: {
+            technician: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { bookingDate: 'asc' },
+    });
+
+    const namaBulan = [
+      '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+
+    const doc = new PDFDocument({ margin: 30, size: 'A4' });
+    
+    const fileName = `laporan_${namaBulan[m]}_${y}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    doc.pipe(res);
+
+    // Header
+    doc.fontSize(20).text('Laporan Pendapatan', { align: 'center' });
+    doc.fontSize(14).text(`Periode: ${namaBulan[m]} ${y}`, { align: 'center' });
+    doc.moveDown(2);
+
+    let totalRevenue = 0;
+    const tableRows = bookings.map((b, index) => {
+      const tanggal = b.bookingDate ? new Date(b.bookingDate).toLocaleDateString('id-ID') : '-';
+      const pelanggan = b.customer?.name || '-';
+      const layanan = b.service?.name || '-';
+      const teknisi = b.assignments?.map(a => a.technician?.name).filter(Boolean).join(', ') || '-';
+      const harga = b.totalPrice || 0;
+      totalRevenue += harga;
+
+      return [
+        (index + 1).toString(),
+        tanggal,
+        pelanggan,
+        layanan,
+        teknisi,
+        `Rp ${harga.toLocaleString('id-ID')}`
+      ];
+    });
+
+    const table = {
+      headers: ['No', 'Tanggal', 'Pelanggan', 'Layanan', 'Teknisi', 'Total Harga'],
+      rows: tableRows,
+    };
+
+    await doc.table(table, { 
+      prepareHeader: () => doc.font('Helvetica-Bold').fontSize(10),
+      prepareRow: (row, indexColumn, indexRow, rectRow) => doc.font('Helvetica').fontSize(10),
+    });
+
+    doc.moveDown();
+    doc.font('Helvetica-Bold').fontSize(12).text(`Total Pesanan Selesai: ${bookings.length}`);
+    doc.text(`Total Pendapatan: Rp ${totalRevenue.toLocaleString('id-ID')}`);
+
+    doc.end();
+
+  } catch (error) {
+    console.error('Download PDF report error:', error);
+    res.status(500).json({ error: 'Gagal mengunduh laporan PDF' });
+  }
+};
+
