@@ -10,7 +10,7 @@ export const getMyTasks = async (req, res) => {
       where: {
         technicianId: req.user.id,
         booking: {
-          status: { in: ['ASSIGNED', 'IN_PROGRESS'] }
+          status: { in: ['ASSIGNED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS', 'SUSPENDED'] }
           // bookingDate: today // Optionally filter by today
         }
       },
@@ -32,7 +32,8 @@ export const getMyTasks = async (req, res) => {
 };
 
 const statusSchema = z.object({
-  status: z.enum(['IN_PROGRESS'])
+  status: z.enum(['ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS', 'SUSPENDED']),
+  suspensionReason: z.string().optional()
 });
 
 export const updateTaskStatus = async (req, res) => {
@@ -51,16 +52,37 @@ export const updateTaskStatus = async (req, res) => {
       return res.status(404).json({ error: 'Task not found or not assigned to you' });
     }
 
-    if (booking.status !== 'ASSIGNED') {
-      return res.status(400).json({ error: 'Cannot transition to IN_PROGRESS from current status' });
+    // Validate transitions
+    const validTransitions = {
+      'ASSIGNED': ['ON_THE_WAY'],
+      'ON_THE_WAY': ['ARRIVED'],
+      'ARRIVED': ['IN_PROGRESS'],
+      'IN_PROGRESS': ['SUSPENDED'],
+      'SUSPENDED': ['IN_PROGRESS']
+    };
+
+    if (!validTransitions[booking.status]?.includes(data.status)) {
+      return res.status(400).json({ error: `Cannot transition from ${booking.status} to ${data.status}` });
+    }
+
+    if (data.status === 'SUSPENDED' && (!data.suspensionReason || data.suspensionReason.trim() === '')) {
+      return res.status(400).json({ error: 'Alasan penangguhan wajib diisi' });
+    }
+
+    const updateData = { status: data.status };
+    if (data.status === 'SUSPENDED') {
+      updateData.suspensionReason = data.suspensionReason;
+    } else if (data.status === 'IN_PROGRESS' && booking.status === 'SUSPENDED') {
+      // Clear reason when resuming
+      updateData.suspensionReason = null;
     }
 
     const updatedBooking = await prisma.booking.update({
       where: { id: booking.id },
-      data: { status: data.status }
+      data: updateData
     });
 
-    res.json({ message: 'Status updated to IN_PROGRESS', booking: updatedBooking });
+    res.json({ message: `Status updated to ${data.status}`, booking: updatedBooking });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors });

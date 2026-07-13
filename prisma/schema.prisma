@@ -16,7 +16,10 @@ enum Role {
 enum BookingStatus {
   PENDING       // Menunggu Konfirmasi
   ASSIGNED      // Teknisi Ditugaskan
+  ON_THE_WAY    // Dalam Perjalanan
+  ARRIVED       // Sampai di Tempat
   IN_PROGRESS   // Proses Perbaikan
+  SUSPENDED     // Ditangguhkan (Ada Kendala)
   COMPLETED     // Selesai
 }
 
@@ -53,6 +56,7 @@ model Booking {
   complaint     String         @db.Text
   status        BookingStatus  @default(PENDING)
   totalPrice    Float
+  suspensionReason String?     @db.Text
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   

@@ -128,3 +128,92 @@ export const getReports = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const downloadReport = async (req, res) => {
+  try {
+    const { month, year } = req.query;
+
+    if (!month || !year) {
+      return res.status(400).json({ error: 'Parameter month dan year wajib diisi' });
+    }
+
+    const m = parseInt(month);
+    const y = parseInt(year);
+
+    // Tentukan range tanggal awal & akhir bulan
+    const startDate = new Date(y, m - 1, 1);
+    const endDate = new Date(y, m, 1); // Awal bulan berikutnya
+
+    // Query booking COMPLETED di bulan tersebut
+    const bookings = await prisma.booking.findMany({
+      where: {
+        status: 'COMPLETED',
+        bookingDate: {
+          gte: startDate,
+          lt: endDate,
+        },
+      },
+      include: {
+        customer: { select: { name: true, phone: true } },
+        service: { select: { name: true } },
+        assignments: {
+          include: {
+            technician: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { bookingDate: 'asc' },
+    });
+
+    // Nama bulan untuk header
+    const namaBulan = [
+      '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+
+    // Generate CSV
+    const csvRows = [];
+
+    // Header info
+    csvRows.push(`Laporan Pendapatan - ${namaBulan[m]} ${y}`);
+    csvRows.push('');
+
+    // Column headers
+    csvRows.push('No,Tanggal,Pelanggan,Telepon,Layanan,Jumlah,Alamat,Teknisi,Total Harga');
+
+    // Data rows
+    let totalRevenue = 0;
+    bookings.forEach((b, index) => {
+      const tanggal = b.bookingDate ? new Date(b.bookingDate).toLocaleDateString('id-ID') : '-';
+      const pelanggan = b.customer?.name || '-';
+      const telepon = b.customer?.phone || '-';
+      const layanan = b.service?.name || '-';
+      const jumlah = b.quantity || 1;
+      // Escape alamat yang mengandung koma
+      const alamat = `"${(b.address || '-').replace(/"/g, '""')}"`;
+      const teknisi = b.assignments?.map(a => a.technician?.name).filter(Boolean).join('; ') || '-';
+      const harga = b.totalPrice || 0;
+      totalRevenue += harga;
+
+      csvRows.push(`${index + 1},${tanggal},${pelanggan},${telepon},${layanan},${jumlah},${alamat},${teknisi},${harga}`);
+    });
+
+    // Footer summary
+    csvRows.push('');
+    csvRows.push(`Total Pesanan Selesai:,${bookings.length}`);
+    csvRows.push(`Total Pendapatan:,${totalRevenue}`);
+
+    const csvContent = csvRows.join('\n');
+    const fileName = `laporan_${namaBulan[m]}_${y}.csv`;
+
+    // BOM untuk UTF-8 agar Excel membaca karakter Indonesia dengan benar
+    const bom = '\uFEFF';
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(bom + csvContent);
+  } catch (error) {
+    console.error('Download report error:', error);
+    res.status(500).json({ error: 'Gagal mengunduh laporan' });
+  }
+};

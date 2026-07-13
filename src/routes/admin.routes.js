@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getPendingBookings, getAvailableTechnicians, assignTechnician, getReports } from '../controllers/admin.controller.js';
+import { getPendingBookings, getAvailableTechnicians, assignTechnician, getReports, downloadReport } from '../controllers/admin.controller.js';
 import { authenticate, authorizeRole } from '../middlewares/auth.middleware.js';
 
 const router = Router();
@@ -10,5 +10,6 @@ router.get('/bookings/pending', getPendingBookings);
 router.get('/technicians/available', getAvailableTechnicians);
 router.post('/bookings/:id/assign', assignTechnician);
 router.get('/reports', getReports);
+router.get('/reports/download', downloadReport);
 
 export default router;
