@@ -18,6 +18,26 @@ export const getPendingBookings = async (req, res) => {
   }
 };
 
+export const getAllBookings = async (req, res) => {
+  try {
+    const bookings = await prisma.booking.findMany({
+      include: {
+        customer: { select: { id: true, name: true, phone: true, email: true } },
+        service: true,
+        assignments: {
+          include: {
+            technician: { select: { name: true, phone: true } }
+          }
+        }
+      },
+      orderBy: { bookingDate: 'desc' } // Newest first
+    });
+    res.json(bookings);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 export const getAvailableTechnicians = async (req, res) => {
   try {
     const { date } = req.query;
