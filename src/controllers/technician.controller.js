@@ -21,7 +21,7 @@ export const getMyTasks = async (req, res) => {
           }
         }
       },
-      orderBy: { booking: { bookingDate: 'asc' } }
+      orderBy: { booking: { createdAt: 'desc' } }
     });
 
     res.json(assignments.map(a => a.booking));
@@ -42,7 +42,7 @@ export const getAllMyTasks = async (req, res) => {
           }
         }
       },
-      orderBy: { booking: { bookingDate: 'desc' } }
+      orderBy: { booking: { createdAt: 'desc' } }
     });
 
     res.json(assignments.map(a => a.booking));

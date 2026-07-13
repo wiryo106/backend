@@ -10,7 +10,7 @@ export const getPendingBookings = async (req, res) => {
         customer: { select: { id: true, name: true, phone: true, email: true } },
         service: true
       },
-      orderBy: { bookingDate: 'asc' }
+      orderBy: { createdAt: 'desc' }
     });
     res.json(bookings);
   } catch (error) {
@@ -30,7 +30,7 @@ export const getAllBookings = async (req, res) => {
           }
         }
       },
-      orderBy: { bookingDate: 'desc' } // Newest first
+      orderBy: { createdAt: 'desc' } // Newest first
     });
     res.json(bookings);
   } catch (error) {
