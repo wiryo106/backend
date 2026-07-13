@@ -11,7 +11,6 @@ export const getMyTasks = async (req, res) => {
         technicianId: req.user.id,
         booking: {
           status: { in: ['ASSIGNED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS', 'SUSPENDED'] }
-          // bookingDate: today // Optionally filter by today
         }
       },
       include: {
@@ -23,6 +22,27 @@ export const getMyTasks = async (req, res) => {
         }
       },
       orderBy: { booking: { bookingDate: 'asc' } }
+    });
+
+    res.json(assignments.map(a => a.booking));
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getAllMyTasks = async (req, res) => {
+  try {
+    const assignments = await prisma.assignment.findMany({
+      where: { technicianId: req.user.id },
+      include: {
+        booking: {
+          include: {
+            customer: { select: { name: true, phone: true } },
+            service: true
+          }
+        }
+      },
+      orderBy: { booking: { bookingDate: 'desc' } }
     });
 
     res.json(assignments.map(a => a.booking));
